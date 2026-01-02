@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Life Timeline</title>
+    <!-- Vis.js CSS from CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-timeline/7.7.2/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+    <!-- Vis.js JS from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-timeline/7.7.2/vis-timeline-graph2d.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary-color: #10b981;
+            --danger-color: #ef4444;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 12px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-weight: 800;
+            color: var(--text-color);
+            margin-bottom: 20px;
+            font-size: 2.2rem;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            margin-bottom: 15px;
+            margin-top: 0;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 15px 25px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            min-width: 200px;
+        }
+
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 0.875rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-sm:hover {
+            background: var(--bg-color);
+            border-color: var(--text-muted);
+        }
+
+        /* Grid Layout for Timeline + Detail View */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (min-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 2fr 1fr; /* Timeline takes 2/3, Detail takes 1/3 */
+                align-items: start;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Fullscreen Mode Styles */
+        .card.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1000;
+            border-radius: 0;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card.fullscreen #timeline {
+            flex-grow: 1;
+            height: auto !important;
+        }
+        
+        .card.fullscreen .timeline-header-controls {
+            display: flex; /* Show exit button in fullscreen */
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .timeline-header-controls {
+            display: none;
+        }
+
+        /* Timeline Styling */
+        #timeline {
+            height: 500px;
+            border: 1px solid var(--border-color);
+            background-color: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .vis-item {
+            border-color: transparent;
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        
+        .vis-item.vis-selected {
+            background-color: var(--primary-hover);
+            border-color: white;
+            box-shadow: 0 0 0 2px var(--primary-color);
+        }
+
+        /* Minor Event Styling */
+        .vis-item.minor-event {
+            background-color: #9ca3af; /* Gray */
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        /* Detail Panel */
+        #detailPanel {
+            min-height: 500px;
+            position: relative;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding-top: 50px;
+        }
+
+        .detail-header {
+            margin-bottom: 15px;
+        }
+
+        .detail-date {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .tag-badge {
+            display: inline-block;
+            background-color: #e0e7ff;
+            color: #4338ca;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .detail-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .image-grid img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s;
+        }
+
+        .image-grid img:hover {
+            transform: scale(1.05);
+        }
+
+        /* Form Styling */
+        form {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        @media (min-width: 768px) {
+            form {
+                grid-template-columns: 1fr 1fr;
+            }
+            .full-width {
+                grid-column: span 2;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+            color: var(--text-color);
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            flex-direction: row;
+        }
+
+        /* Recurring Options */
+        #recurringOptions {
+            display: none; /* Hidden by default */
+            background-color: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            grid-column: span 2;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 767px) {
+            #recurringOptions {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Buttons */
+        .btn {
+            color: white;
+            font-weight: 600;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary { background-color: var(--primary-color); }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+
+        .btn-danger { background-color: var(--danger-color); }
+        .btn-danger:hover { background-color: #dc2626; }
+
+        .btn-warning { background-color: #d97706; }
+        .btn-warning:hover { background-color: #b45309; }
+        
+        .btn-secondary { background-color: var(--text-muted); }
+        .btn-secondary:hover { background-color: #4b5563; }
+
+        /* Modal Overlay for importing */
+        #fileInput { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Life Timeline</h1>
+        
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <input type="text" id="tagFilter" class="search-input" placeholder="Filter by tag (e.g. 'travel')..." oninput="filterEvents()">
+                
+                <label class="checkbox-wrapper" style="margin:0; cursor: pointer;">
+                    <input type="checkbox" id="toggleMinor" checked onchange="filterEvents()">
+                    <span>Show Minor Events</span>
+                </label>
+            </div>
+            <div class="toolbar-group">
+                <button class="btn-sm" onclick="toggleFullscreen()">&#x26F6; Fullscreen</button>
+                <button class="btn-sm" onclick="exportData()">Export JSON</button>
+                <button class="btn-sm" onclick="triggerImport()">Import JSON</button>
+                <input type="file" id="fileInput" accept=".json" onchange="importData(this)">
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- Timeline Section -->
+            <div class="card" id="timelineCard">
+                <div class="timeline-header-controls">
+                    <h3>Timeline View</h3>
+                    <button class="btn-sm" onclick="toggleFullscreen()">Exit Fullscreen</button>
+                </div>
+                <div id="timeline"></div>
+            </div>
+
+            <!-- Detail / Gallery Section -->
+            <div class="card" id="detailPanel">
+                <div class="empty-state">
+                    <h3>Select an event to view details</h3>
+                    <p>Click on any item in the timeline.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add/Edit Form -->
+        <div class="card" id="formCard">
+            <h2 id="formTitle">Add New Event</h2>
+            <form id="eventForm">
+                <input type="hidden" id="eventId"> <!-- Hidden ID for editing -->
+
+                <div class="form-group">
+                    <label for="date">Date (YYYY-MM-DD HH:MM)</label>
+                    <input type="datetime-local" id="date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" placeholder="e.g. Graduated College" required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="tags">Tags (comma separated)</label>
+                    <input type="text" id="tags" placeholder="e.g. travel, career, family">
+                </div>
+
+                <div class="form-group checkbox-wrapper full-width">
+                    <input type="checkbox" id="isMinor">
+                    <label for="isMinor" style="margin-bottom:0; font-weight: 400;">Mark as Minor Event</label>
+                </div>
+
+                <!-- Recurring Checkbox -->
+                <div class="form-group checkbox-wrapper full-width">
+                    <input type="checkbox" id="isRecurring" onchange="toggleRecurringOptions()">
+                    <label for="isRecurring" style="margin-bottom:0; font-weight: 400;">Recurring Event?</label>
+                </div>
+
+                <!-- Recurring Options Panel -->
+                <div id="recurringOptions">
+                    <div class="form-group">
+                        <label for="recurFrequency">Frequency</label>
+                        <select id="recurFrequency">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="recurUntil">Repeat Until Date</label>
+                        <input type="date" id="recurUntil">
+                    </div>
+                    <div class="full-width">
+                        <small style="color: var(--text-muted);">Note: This will generate individual events linked by a Series ID. You can delete single instances or the future series.</small>
+                    </div>
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="images">Image URLs (One per line)</label>
+                    <textarea id="images" placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg"></textarea>
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="description">Description</label>
+                    <textarea id="description" placeholder="Details about this memory..." required style="min-height: 120px;"></textarea>
+                </div>
+                
+                <div class="form-group full-width" style="flex-direction: row; gap: 10px;">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Add Event</button>
+                    <button type="button" class="btn btn-secondary" id="cancelBtn" style="display:none;" onclick="resetForm()">Cancel Edit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // --- State Management ---
+        let allEvents = [];
+        let itemsDataSet = new vis.DataSet();
+        let itemsDataView = new vis.DataView(itemsDataSet, {
+            filter: function (item) {
+                // 1. Minor Events Filter
+                const showMinor = document.getElementById('toggleMinor').checked;
+                if (item.isMinor && !showMinor) return false;
+
+                // 2. Tag Filter
+                const filterText = document.getElementById('tagFilter').value.toLowerCase().trim();
+                if (filterText) {
+                    if (!item.tags || item.tags.length === 0) return false;
+                    const matches = item.tags.some(tag => tag.toLowerCase().includes(filterText));
+                    if (!matches) return false;
+                }
+
+                return true;
+            }
+        });
+
+        // --- Initialize Timeline ---
+        const container = document.getElementById('timeline');
+        const options = {
+            zoomable: true,
+            moveable: true,
+            orientation: 'top',
+            showCurrentTime: true,
+            height: '100%',
+            min: new Date(1900, 0, 1), 
+            max: new Date(2100, 0, 1), 
+            zoomMin: 1000 * 60 * 60 * 24, // 1 day
+            zoomMax: 1000 * 60 * 60 * 24 * 365 * 100, // 100 years
+            multiselect: false
+        };
+        const timeline = new vis.Timeline(container, itemsDataView, options);
+
+        // --- Data Loading & Saving ---
+        function loadEvents() {
+            const saved = localStorage.getItem('lifeEvents');
+            if (saved) {
+                allEvents = JSON.parse(saved);
+                
+                // Migrations
+                allEvents = allEvents.map(e => {
+                    if (e.image && (!e.images || e.images.length === 0)) e.images = [e.image];
+                    if (!e.images) e.images = [];
+                    if (!e.tags) e.tags = [];
+                    return e;
+                });
+
+                refreshTimeline();
+            }
+        }
+
+        function saveEvents() {
+            localStorage.setItem('lifeEvents', JSON.stringify(allEvents));
+            refreshTimeline();
+        }
+
+        function refreshTimeline() {
+            itemsDataSet.clear();
+            const visItems = allEvents.map(event => ({
+                id: event.id,
+                content: `<strong>${event.title}</strong>`, 
+                start: new Date(event.date),
+                type: 'box',
+                className: event.isMinor ? 'minor-event' : '',
+                isMinor: !!event.isMinor,
+                tags: event.tags || []
+            }));
+            itemsDataSet.add(visItems);
+            timeline.fit();
+        }
+
+        // --- UI Logic: Filters & Fullscreen ---
+        function filterEvents() {
+            itemsDataView.refresh();
+        }
+
+        function toggleFullscreen() {
+            const card = document.getElementById('timelineCard');
+            card.classList.toggle('fullscreen');
+            
+            // Allow CSS transition time then redraw timeline to fix sizing
+            setTimeout(() => {
+                timeline.redraw();
+            }, 100);
+        }
+
+        // Add ESC key listener to exit fullscreen
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "Escape") {
+                const card = document.getElementById('timelineCard');
+                if (card.classList.contains('fullscreen')) {
+                    toggleFullscreen();
+                }
+            }
+        });
+
+        // --- UI Logic: Recurring Options ---
+        function toggleRecurringOptions() {
+            const isRecurring = document.getElementById('isRecurring').checked;
+            const optionsPanel = document.getElementById('recurringOptions');
+            const recurUntil = document.getElementById('recurUntil');
+            
+            if (isRecurring) {
+                optionsPanel.style.display = 'grid';
+                recurUntil.required = true;
+                if(document.getElementById('eventId').value) {
+                    alert("Note: You cannot make an existing event recurring. Please create a new series.");
+                    document.getElementById('isRecurring').checked = false;
+                    optionsPanel.style.display = 'none';
+                }
+            } else {
+                optionsPanel.style.display = 'none';
+                recurUntil.required = false;
+            }
+        }
+
+        // --- Interaction: Select Event ---
+        timeline.on('select', function (properties) {
+            const selectedId = properties.items[0];
+            const detailPanel = document.getElementById('detailPanel');
+
+            if (!selectedId) {
+                detailPanel.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Select an event to view details</h3>
+                        <p>Click on any item in the timeline.</p>
+                    </div>`;
+                return;
+            }
+
+            const event = allEvents.find(e => e.id === selectedId);
+            if (event) {
+                renderDetailPanel(event);
+            }
+        });
+
+        function renderDetailPanel(event) {
+            const dateStr = new Date(event.date).toLocaleString();
+            
+            let imagesHtml = '';
+            if (event.images && event.images.length > 0) {
+                imagesHtml = `<div class="image-grid">
+                    ${event.images.map(url => `<a href="${url}" target="_blank"><img src="${url}" alt="Memory"></a>`).join('')}
+                </div>`;
+            }
+
+            let tagsHtml = '';
+            if (event.tags && event.tags.length > 0) {
+                tagsHtml = `<div style="margin-top:5px;">${event.tags.map(t => `<span class="tag-badge">${t}</span>`).join('')}</div>`;
+            }
+
+            // Check if part of a series for "Delete Forward" button
+            let deleteSeriesBtn = '';
+            if (event.seriesId) {
+                deleteSeriesBtn = `<button class="btn btn-warning" onclick="deleteForward(${event.id})">Delete Forward (Series)</button>`;
+            }
+
+            const html = `
+                <div class="detail-header">
+                    <div>
+                        <h2>${event.title}</h2>
+                        <span class="detail-date">${dateStr} ${event.isMinor ? '(Minor Event)' : ''}</span>
+                        ${tagsHtml}
+                    </div>
+                </div>
+                <div>
+                    <p>${event.description.replace(/\n/g, '<br>')}</p>
+                    ${imagesHtml}
+                </div>
+                <div class="detail-actions">
+                    <button class="btn btn-primary" onclick="editEvent(${event.id})">Edit</button>
+                    <button class="btn btn-danger" onclick="deleteEvent(${event.id})">Delete</button>
+                    ${deleteSeriesBtn}
+                </div>
+            `;
+            document.getElementById('detailPanel').innerHTML = html;
+        }
+
+        // --- Interaction: Add / Update ---
+        document.getElementById('eventForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const idInput = document.getElementById('eventId').value;
+            const dateStr = document.getElementById('date').value;
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const isMinor = document.getElementById('isMinor').checked;
+            
+            // Process Tags
+            const tagsInput = document.getElementById('tags').value;
+            const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+            // Process Images
+            const imagesText = document.getElementById('images').value;
+            const images = imagesText.split('\n').map(url => url.trim()).filter(url => url.length > 0);
+            
+            let nextId = allEvents.length > 0 ? Math.max(...allEvents.map(e => e.id)) + 1 : 1;
+
+            if (idInput) {
+                // --- UPDATE EXISTING (Single Event) ---
+                const index = allEvents.findIndex(e => e.id == idInput);
+                if (index !== -1) {
+                    // Preserve existing seriesId if any
+                    const existingSeriesId = allEvents[index].seriesId;
+                    
+                    allEvents[index] = {
+                        id: parseInt(idInput),
+                        date: dateStr, 
+                        title, description, isMinor, images, tags,
+                        seriesId: existingSeriesId
+                    };
+                    renderDetailPanel(allEvents[index]);
+                }
+            } else {
+                // --- CREATE NEW ---
+                const isRecurring = document.getElementById('isRecurring').checked;
+                
+                if (isRecurring) {
+                    const frequency = document.getElementById('recurFrequency').value;
+                    const untilDateStr = document.getElementById('recurUntil').value;
+                    
+                    if(!untilDateStr) {
+                        alert("Please select a 'Repeat Until' date.");
+                        return;
+                    }
+
+                    // Generate a unique Series ID
+                    const seriesId = 'S_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+
+                    let currentDate = new Date(dateStr);
+                    const endDate = new Date(untilDateStr);
+                    endDate.setHours(23, 59, 59);
+
+                    while (currentDate <= endDate) {
+                        const newEvent = {
+                            id: nextId++,
+                            date: currentDate.toISOString(), 
+                            title, description, isMinor, images, tags,
+                            seriesId: seriesId // Link events
+                        };
+                        allEvents.push(newEvent);
+
+                        if (frequency === 'daily') currentDate.setDate(currentDate.getDate() + 1);
+                        else if (frequency === 'weekly') currentDate.setDate(currentDate.getDate() + 7);
+                        else if (frequency === 'monthly') currentDate.setMonth(currentDate.getMonth() + 1);
+                        else if (frequency === 'yearly') currentDate.setFullYear(currentDate.getFullYear() + 1);
+                    }
+
+                } else {
+                    const newEvent = {
+                        id: nextId++,
+                        date: dateStr,
+                        title, description, isMinor, images, tags
+                    };
+                    allEvents.push(newEvent);
+                }
+            }
+
+            saveEvents();
+            resetForm();
+            timeline.moveTo(dateStr);
+        });
+
+        // --- Actions ---
+        function deleteEvent(id) {
+            if(confirm('Are you sure you want to delete THIS specific event?')) {
+                allEvents = allEvents.filter(e => e.id !== id);
+                saveEvents();
+                resetDetailPanel();
+                resetForm();
+            }
+        }
+
+        function deleteForward(id) {
+            const event = allEvents.find(e => e.id === id);
+            if (!event || !event.seriesId) return;
+
+            if(confirm('Are you sure you want to delete this event AND all future events in this series?')) {
+                const cutoffDate = new Date(event.date);
+                const seriesId = event.seriesId;
+
+                // Remove events that match series ID AND are >= current event date
+                // Note: We use string comparison for simplicity if ISO format, or Date object
+                allEvents = allEvents.filter(e => {
+                    if (e.seriesId !== seriesId) return true; // Keep other series/events
+                    const eDate = new Date(e.date);
+                    // If eDate is effectively same or after cutoff, delete it (return false)
+                    // We allow a small margin for "same time" equality
+                    return eDate < cutoffDate; 
+                });
+
+                saveEvents();
+                resetDetailPanel();
+                resetForm();
+            }
+        }
+
+        function resetDetailPanel() {
+            document.getElementById('detailPanel').innerHTML = `
+                <div class="empty-state">
+                    <h3>Event Deleted</h3>
+                    <p>Select another event.</p>
+                </div>`;
+        }
+
+        function editEvent(id) {
+            const event = allEvents.find(e => e.id === id);
+            if (!event) return;
+
+            document.getElementById('formTitle').innerText = 'Edit Event';
+            document.getElementById('submitBtn').innerText = 'Update Event';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+
+            document.getElementById('eventId').value = event.id;
+            const d = new Date(event.date);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            document.getElementById('date').value = d.toISOString().slice(0, 16);
+            
+            document.getElementById('title').value = event.title;
+            document.getElementById('description').value = event.description;
+            document.getElementById('isMinor').checked = !!event.isMinor;
+            
+            document.getElementById('images').value = event.images ? event.images.join('\n') : '';
+            document.getElementById('tags').value = event.tags ? event.tags.join(', ') : '';
+
+            document.getElementById('isRecurring').checked = false;
+            document.getElementById('isRecurring').disabled = true;
+            document.getElementById('recurringOptions').style.display = 'none';
+
+            document.getElementById('formCard').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            document.getElementById('eventForm').reset();
+            document.getElementById('eventId').value = '';
+            document.getElementById('formTitle').innerText = 'Add New Event';
+            document.getElementById('submitBtn').innerText = 'Add Event';
+            document.getElementById('cancelBtn').style.display = 'none';
+            
+            document.getElementById('isRecurring').checked = false;
+            document.getElementById('isRecurring').disabled = false;
+            document.getElementById('recurringOptions').style.display = 'none';
+        }
+
+        // --- Import / Export ---
+        function exportData() {
+            const dataStr = JSON.stringify(allEvents, null, 2);
+            const blob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `timeline_backup_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function triggerImport() {
+            document.getElementById('fileInput').click();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedEvents = JSON.parse(e.target.result);
+                    if (Array.isArray(importedEvents)) {
+                        if(confirm(`Found ${importedEvents.length} events. This will overwrite your current timeline. Continue?`)) {
+                            allEvents = importedEvents;
+                            saveEvents();
+                            alert('Import successful!');
+                        }
+                    } else {
+                        alert('Invalid file format: JSON must be an array of events.');
+                    }
+                } catch (err) {
+                    alert('Error parsing JSON file.');
+                    console.error(err);
+                }
+                input.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // --- Initial Load ---
+        loadEvents();
+
+    </script>
+</body>
+</html>
