@@ -37,7 +37,7 @@ A beautiful, interactive web application for visualizing and managing your life 
 
 ## Getting Started
 
-1. **Open the application**:  Simply open `timeline_20260101_05.html` in your web browser
+1. **Open the application**:  Simply open `index.html` in your web browser
 2. **Add your first event**: Fill out the form at the bottom with: 
    - Date and time
    - Event title
